@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Libros</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Lista de Libros</h1>
+
+        <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addBookModal">Agregar Libro</button>
+        <button class="btn btn-success mb-3" 
+        data-bs-toggle="modal" 
+        data-bs-target="#addReviewModal" 
+        onclick="prepareReviewForm({{ book.id }})">
+    Añadir Reseña
+</button>
+
+        <ul class="list-group">
+          {% for book in books %}
+              <li class="list-group-item">
+                  <strong>{{ book.title }}</strong> por {{ book.author }}
+                  <p><em>Género:</em> {{ book.genre }}</p>
+                  <p><em>Fecha de publicación:</em> {{ book.published_date }}</p>
+                  
+                  <button class="btn btn-info btn-sm" 
+                          onclick="loadReviews({{ book.id }})" 
+                          data-bs-toggle="modal" 
+                          data-bs-target="#viewReviewsModal">
+                      Ver Reseñas
+                  </button>
+      
+                 
+              </li>
+          {% endfor %}
+      </ul>
+      
+      
+    </div>
+
+    <div class="modal fade" id="addBookModal" tabindex="-1" aria-labelledby="addBookModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addBookModalLabel">Agregar Libro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <form id="bookForm">
+                    {% csrf_token %}
+                    {% for field in book_form %}
+                        <div class="mb-3">
+                            {{ field.label_tag }}
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger">{{ field.errors }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </form>
+                
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="viewReviewsModal" tabindex="-1" aria-labelledby="viewReviewsModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <h5 class="modal-title" id="viewReviewsModalLabel">Reseñas</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                  <h6 id="reviewsBookTitle"></h6>
+                  <ul id="reviewsList" class="list-group">
+                      
+                  </ul>
+              </div>
+          </div>
+      </div>
+  </div>
+  
+
+  
+    <div class="modal fade" id="addReviewModal" tabindex="-1" aria-labelledby="addReviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addReviewModalLabel">Agregar Reseña</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <form id="reviewForm">
+                    {% csrf_token %}
+                    {% for field in review_form %}
+                        <div class="mb-3">
+                            {{ field.label_tag }}
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger">{{ field.errors }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </form>
+                
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <script>
+        
+        $('#bookForm').on('submit', function(e) {
+            e.preventDefault();
+            $.post("{% url 'add_book' %}", $(this).serialize(), function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Error al guardar el libro');
+                }
+            });
+        });
+
+        $('#reviewForm').on('submit', function(e) {
+            e.preventDefault();
+            $.post("{% url 'add_review' %}", $(this).serialize(), function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Error al guardar la reseña');
+                }
+            });
+        });
+    </script>
+    <script>
+      function loadReviews(bookId) {
+          $.get(`/book_reviews/${bookId}/`, function(data) {
+              $('#reviewsBookTitle').text(`Reseñas de: ${data.book_title}`);
+              
+              $('#reviewsList').empty();
+  
+              if (data.reviews.length > 0) {
+                  data.reviews.forEach(function(review) {
+                      $('#reviewsList').append(`
+                          <li class="list-group-item">
+                              <strong>${review.user}:</strong> ${review.comment} 
+                              <span class="badge bg-secondary">${review.rating}/5</span>
+                              <small class="text-muted">(${review.created_at})</small>
+                          </li>
+                      `);
+                  });
+              } else {
+                  $('#reviewsList').append('<li class="list-group-item">No hay reseñas para este libro.</li>');
+              }
+          });
+      }
+  </script>
+  
+</body>
+</html>

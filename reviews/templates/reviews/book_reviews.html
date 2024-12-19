@@ -1,0 +1,6 @@
+<h1>{{ book.title }} - Reseñas</h1>
+<ul>
+  {% for review in book.reviews.all %}
+    <li>{{ review.user }}: {{ review.comment }} ({{ review.rating }}/5)</li>
+  {% endfor %}
+</ul>

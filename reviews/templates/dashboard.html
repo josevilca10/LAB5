@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Biblioteca</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'logout' %}">Cerrar Sesión</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h1>Bienvenido, {{ user.username }}</h1>
+        <p><strong>Rol:</strong> {{ user.get_role_display }}</p>
+
+        <!-- Libros disponibles -->
+        <h2>Libros Disponibles</h2>
+        <ul class="list-group mb-4">
+            {% for book in books %}
+                <li class="list-group-item">
+                    <strong>{{ book.title }}</strong> por {{ book.author }}
+                    <p><em>Género:</em> {{ book.genre }}</p>
+                    <p><em>Fecha de Publicación:</em> {{ book.published_date }}</p>
+
+                    <!-- Solo usuarios normales pueden agregar reseñas -->
+                    {% if user.role == "normal" %}
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addReviewModal" onclick="prepareReviewForm({{ book.id }})">Añadir Reseña</button>
+                    {% endif %}
+                    
+                    <!-- Escritores ven las reseñas de sus libros -->
+                    {% if user.role == "writer" and book.added_by == user %}
+                        <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewReviewsModal" onclick="loadReviews({{ book.id }})">Ver Reseñas</button>
+                        <a href="{% url 'delete_book' book.id %}" class="btn btn-danger btn-sm">Eliminar Libro</a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+
+        <!-- Sección para escritores: Añadir libro -->
+        {% if user.role == "writer" %}
+            <h2>Añadir Nuevo Libro</h2>
+            <form method="post" action="{% url 'add_book' %}">
+                {% csrf_token %}
+                {{ book_form.as_p }}
+                <button type="submit" class="btn btn-success">Añadir Libro</button>
+            </form>
+        {% endif %}
+
+        <!-- Modal para añadir reseñas -->
+        <div class="modal fade" id="addReviewModal" tabindex="-1" aria-labelledby="addReviewModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addReviewModalLabel">Añadir Reseña</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="post" action="{% url 'add_review' %}">
+                            {% csrf_token %}
+                            <input type="hidden" id="id_book" name="book">
+                            {{ review_form.as_p }}
+                            <button type="submit" class="btn btn-primary">Guardar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para ver reseñas -->
+        <div class="modal fade" id="viewReviewsModal" tabindex="-1" aria-labelledby="viewReviewsModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewReviewsModalLabel">Reseñas</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h5 id="reviewsBookTitle"></h5>
+                        <ul class="list-group" id="reviewsList">
+                            <!-- Las reseñas se cargarán dinámicamente aquí -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configura el formulario de reseñas con el libro correspondiente
+        function prepareReviewForm(bookId) {
+            $('#id_book').val(bookId);
+        }
+
+        // Carga reseñas dinámicamente en el modal de "Ver Reseñas"
+        function loadReviews(bookId) {
+            $.get(`/book_reviews/${bookId}/`, function(data) {
+                // Actualizar el título del modal
+                $('#reviewsBookTitle').text(`Reseñas de: ${data.book_title}`);
+                
+                // Limpiar la lista de reseñas
+                $('#reviewsList').empty();
+
+                // Verificar si hay reseñas
+                if (data.reviews.length > 0) {
+                    data.reviews.forEach(function(review) {
+                        $('#reviewsList').append(`
+                            <li class="list-group-item">
+                                <strong>${review.user}:</strong> ${review.comment}
+                                <span class="badge bg-secondary">${review.rating}/5</span>
+                                <small class="text-muted">(${review.created_at})</small>
+                            </li>
+                        `);
+                    });
+                } else {
+                    $('#reviewsList').append('<li class="list-group-item">No hay reseñas para este libro.</li>');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
